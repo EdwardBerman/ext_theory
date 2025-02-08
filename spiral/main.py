@@ -17,6 +17,37 @@ def set_seed(s):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+def expected_calibration_error(
+    y_true: np.ndarray, y_probs: np.ndarray, num_bins: int = 20
+) -> float:
+    """Compute the Expected Calibration Error (ECE) for multi-class classification."""
+    bin_boundaries = np.linspace(0, 1, num_bins + 1)
+    bin_lowers = bin_boundaries[:-1]
+    bin_uppers = bin_boundaries[1:]
+    ece = 0.0
+    total_samples = len(y_true)
+
+    for bin_lower, bin_upper in zip(bin_lowers, bin_uppers):
+        bin_size = 0
+        bin_error = 0.0
+        correct_in_bin = 0
+        probability_in_bin = 0
+
+        for i in range(total_samples):
+            prob_pred = y_probs[i, np.argmax(y_probs[i])]
+
+            if bin_lower < prob_pred <= bin_upper:
+                bin_size += 1
+                is_correct = y_true[i] == np.argmax(y_probs[i])
+                correct_in_bin += is_correct
+                probability_in_bin += np.max(y_probs[i])
+            
+        if bin_size > 0:
+            bin_error = np.abs((correct_in_bin / bin_size) - (probability_in_bin / bin_size))
+            ece += bin_error * (bin_size / total_samples)
+
+    return ece
+
 def getData(icr=0., cr=0., plot=False):
     extr = 1 - icr - cr
     assert 0 <= extr <= 1
@@ -159,9 +190,14 @@ def train():
             test_data = test_data.to(device)
             test_out = network(test_data)
             acc = (test_out.argmax(1) == test_label.to(device)).sum() / test_out.shape[0]
+
+            y_true = test_label.cpu().numpy()
+            probabilities = F.softmax(test_out, dim=1).cpu().numpy()
+            ece = expected_calibration_error(y_true, probabilities)
+
             test_err = acc.item()
             network.train()
-        logger.model_holdout_losses.append((valid_loss, test_err))
+        logger.model_holdout_losses.append((valid_loss, test_err, ece))
         logger.saveModelLosses()
 
         if valid_loss < min_valid_loss:
