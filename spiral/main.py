@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 import torch.nn.functional as F
 from tqdm import tqdm
+import numpy as np
 
 from networks import MLP, MLPNoZ, MLPDSS
 from parameters import *
