@@ -19,7 +19,7 @@ def set_seed(s):
     torch.backends.cudnn.benchmark = False
 
 def expected_calibration_error(
-    y_true: np.ndarray, y_probs: np.ndarray, num_bins: int = 20
+    y_true: np.ndarray, y_probs: np.ndarray, num_bins: int = 100
 ) -> float:
     """Compute the Expected Calibration Error (ECE) for multi-class classification."""
     bin_boundaries = np.linspace(0, 1, num_bins + 1)
